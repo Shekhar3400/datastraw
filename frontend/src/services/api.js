@@ -1,27 +1,27 @@
 /**
  * Centralised API service using axios.
- * All requests go through this module so the base URL is configured once.
+ * BASE_URL is read from VITE_API_BASE_URL env variable.
+ * Trailing slash is stripped to avoid double-slash URLs.
  */
 import axios from 'axios'
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+// Strip trailing slash so URLs like "https://api.railway.app/" don't break
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '')
 
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 15000,
+  timeout: 20000,
 })
-
-// ─── Request interceptor ──────────────────────────────────────────────────────
-api.interceptors.request.use(
-  (config) => config,
-  (error) => Promise.reject(error)
-)
 
 // ─── Response interceptor ─────────────────────────────────────────────────────
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Network error (no response) — backend unreachable
+    if (!error.response) {
+      return Promise.reject(new Error('Cannot reach the server. Check your backend URL.'))
+    }
     const message =
       error.response?.data?.detail ||
       error.response?.data?.message ||

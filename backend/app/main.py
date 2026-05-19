@@ -28,18 +28,31 @@ app = FastAPI(
 )
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
-ALLOWED_ORIGINS = os.getenv(
-    "ALLOWED_ORIGINS",
-    "http://localhost:5173,http://localhost:3000",
-).split(",")
+# ALLOWED_ORIGINS env var: comma-separated list of allowed origins.
+# Defaults to allow all origins (*) so Railway deployments work out of the box.
+# For production, set ALLOWED_ORIGINS to your exact Vercel URL, e.g.:
+#   ALLOWED_ORIGINS=https://nexusdesk-crm.vercel.app
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+if _raw_origins.strip() == "*":
+    # Allow all origins — simplest fix for initial deployment
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,   # must be False when allow_origins=["*"]
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    # Specific origins list — allow credentials for cookie-based auth later
+    ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # ─── Routers ──────────────────────────────────────────────────────────────────
 app.include_router(tickets_router)
